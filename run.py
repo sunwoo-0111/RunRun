@@ -28,8 +28,8 @@ def start_game():
     font_large = ImageFont.truetype(font_path, size=20)
     font_small = ImageFont.truetype(font_path, size=12)
 
-    draw.text((60,50),"Run!! Run!!",fill=(255,0,0),font=font_large)
-    draw.text((60,200), "Press A to start", fill=(0,0,0), font=font_small)
+    draw.text((60,130),"Run!! Run!!",fill=(255,255,0),font=font_large,)
+    draw.text((80,200), "Press A to start", fill=(255,0,0), font=font_small)
 
     running = True
     while running:
@@ -39,7 +39,6 @@ def start_game():
                 exit()
             if event.type == pg.KEYDOWN:
                 if event.key == pg.K_a:  # A 키를 누르면 시작
-                    print("a key pressed")
                     running = False
 
         # 이미지를 PyGame 화면에 출력
@@ -56,7 +55,6 @@ def Game():
     restart = False
     
     backgroundImage = Image.open("/Users/limsunwoo/runrun/images/background.png").convert("RGB")
-    
 
     block = []
     for i in range(20):
@@ -73,38 +71,45 @@ def Game():
         if isblock:
             block.append([240, 240 - 12])  # 바닥
         else:
+            print("holecounted")
             holeCount += 1
 
         if random.randint(0, 4) == 0 or holeCount > 3:
-            block.append([240,240-24])
-            block.append([240,240-12])
+        # 기둥의 높이를 랜덤으로 설정 (24, 36 중 하나)
+            obstacleHeight = random.choice([24, 36])
+            block.append([240, 240 - obstacleHeight])
             isblock = not isblock
             holeCount = 0
+        else:
+        # 구멍의 크기를 랜덤으로 설정 (1칸, 2칸, 3칸)
+            hole_size = random.randint(1, 3)  # 1칸에서 3칸 사이의 구멍 크기
+            if holeCount < 3:  # 구멍이 3칸 이하일 때만 구멍 생성
+                block.append([240, 240 - (hole_size * 12)])  # 구멍의 높이를 12씩 곱하여 설정
+        return isblock, holeCount
 
     # 도둑 구현
     playerPos = [12 * 10, 10 * 12]
     playerSize = [12, 24]
 
-    playerImage = Image.new("RGB", (12, 24), (255, 0, 0))
+    playerImage = Image.open("/Users/limsunwoo/runrun/images/Thief1.png").convert("RGBA")
     drawPlayerImage = ImageDraw.Draw(playerImage)
-    drawPlayerImage.rectangle((6, 3, 12, 7), (0, 255, 0))
 
-    playerSlideImage = Image.new("RGB", (24, 12), (255, 0, 0))
+    playerSlideImage = Image.open("/Users/limsunwoo/runrun/images/sliding.png")
     drawPlayerImage = ImageDraw.Draw(playerSlideImage)
-    drawPlayerImage.rectangle((3, 0, 7, 6), (0, 255, 0))
 
     # 추격자 구현
-    chaserPos = [0 ,10*12]
+    chaserPos = [-24 ,playerPos[1]]
     chaserSize = [24, 24]
-
-    chaserImage = Image.new("RGB", (24,24), (0,0,255))
-    drawchaserImage = ImageDraw.Draw(chaserImage)
-    drawPlayerImage.rectangle((6, 3, 12, 7), (0, 255, 0))
+    chaserSpeed = 2
+    chaserActive = False
 
     playerVerticalSpeed = 0
     jumpable = False
     playerSlide = False
 
+    # 목숨 아이템 구현
+    heartPos = None
+    heartTimer = 0
 
     # 충돌 함수
     def collision(playerPos,playerSize, other):  # 0: no collision, 1: top, 2: bottom, 3: left, 4: right
@@ -154,7 +159,7 @@ def Game():
         score += 1
 
         playerPos[1] += playerVerticalSpeed
-        playerVerticalSpeed += 1
+        playerVerticalSpeed += 1.2
         playerVerticalSpeed = min(playerVerticalSpeed, 5)
 
         usePlayerImage = playerImage.copy()
@@ -165,6 +170,9 @@ def Game():
             playerSize = [12,24]
 
         jumpable = False
+        # 충돌했을 때 벽에 밀려 위치가 애매해지는 현상 해결
+        isrecovering = False
+        recoverPos = 120
         # 충돌 체크
         for b in block:
             col = collision(playerPos,playerSize, b)
@@ -175,7 +183,7 @@ def Game():
             elif col == 2:
                 playerPos[1] = b[1] + playerSize[1]
                 playerVerticalSpeed = 0
-            elif col == 3: #벽에 부딫히면 목숨 소모,그리고 1초동안 무적 상태
+            elif col == 3: #벽에 부딫히면 목숨 소모,그리고 1초동안 무적 상태 그리고 원래위치 돌아오기
                 if time.time() > invincible_until:
                     lives -= 1
                     invincible_until = time.time() + 1 # 1초 무적
@@ -183,12 +191,48 @@ def Game():
                         running = False
                 playerPos[0] = b[0] - playerSize[0]
 
+
         if time.time() < invincible_until:
             usePlayerImage = usePlayerImage.point(lambda p:p//2)
 
-        # 적군
-        # enemyCol = collision(enemy)
+        if playerPos[0] < 120:
+            playerPos[0] += 1.5
+            if playerPos[0] == 120:
+                playerPos[0] = 120
 
+        # 추격자 활성화 조건
+        if lives == 2 and not chaserActive:
+            chaserActive = True
+            chaserPos = [-24, 240-36]
+
+        # 추격자 이동 로직 (묵숨이 달때 쫒아오는것 + 목숨을 먹었을 떄 멀어지는 것 까지 구현)
+        if chaserActive:
+            if col == 3:
+                chaserPos[0] += chaserSpeed
+            else:
+                if lives >= 3:
+                    chaserPos[0] -= 1
+                    if chaserPos[0] == 0:
+                        chaserPos[0] = 0
+                elif lives == 2:
+                    if chaserPos[0] < playerPos[0] - 60: 
+                        chaserPos[0] += chaserSpeed
+                    elif chaserPos[0] > playerPos[0] - 60:
+                        chaserPos[0] -= 1
+                    else:
+                        chaserPos[0] = playerPos[0]- 60
+                elif lives == 1:
+                    if chaserPos[0] < playerPos[0] - 40:
+                        chaserPos[0] += chaserSpeed
+                    else:
+                        chaserPos[0] = playerPos[0] - 40
+            
+
+        #추격자에게 잡히면 게임 끝
+        if chaserPos[0] + chaserSize[0] == playerPos[0]:
+            running = False
+
+        
         # 맵 이미지 좌측을 없애가며 이동
         bg = backgroundImage.copy()
         draw = ImageDraw.Draw(bg)
@@ -196,17 +240,47 @@ def Game():
             draw.rounded_rectangle((
                 b[0], b[1], b[0] + 12, b[1] + 12
             ), 2, (0, 0, 0))
-            b[0] -= 3
+            if(score < 300):
+                b[0] -= 3
+            elif(score < 600):
+                b[0] -= 3.5
+            elif(score < 1000):
+                b[0] -= 4
+            else:
+                b[0] -= 6
 
         # running 중 현재점수, 남은 목숨 , 최고점수 띄우기
         font = ImageFont.load_default()
-        draw.text((5,5), f"Score: {score}", fill=(0,0,0), font=font)
+        if(score <= high_score):
+            draw.text((5,5), f"Score: {score}", fill=(0,0,0), font=font)
+        else:
+            draw.text((5,5), f"Score: {score}", fill=(255,0,0), font=font)
         draw.text((200,5), f"Lives: {lives}", fill=(255,0,0), font=font)
         draw.text((100,5),f"high: {high_score}", fill=(0,0,0),font=font)
 
         # 플레이어 이미지 그리기
         bg.paste(usePlayerImage, (int(playerPos[0]), int(playerPos[1])))
 
+        # 추격자 그리기
+        if chaserActive:
+            draw.rectangle((chaserPos[0], chaserPos[1], chaserPos[0] + 24, chaserPos[1] + 24), fill=(0, 0, 255))
+
+         # 하트 아이템 구현
+
+        heartImage = Image.open("/Users/limsunwoo/runrun/images/heart.png")
+        if heartPos is None and lives<3 and random.randint(0,100) < 1:
+            heartPos = [240,240-36]
+        
+        if heartPos:
+            bg.paste(heartImage, (heartPos[0],heartPos[1]))
+            heartPos[0] -= 3
+            if (heartPos[0] <= playerPos[0] + 12 and heartPos[0] + heartImage.width >= playerPos[0] and
+                heartPos[1] >= playerPos[1] and heartPos[1] <= playerPos[1] + 24):
+                    heartPos = None
+                    lives += 1
+            elif heartPos[0] < -2:
+                heartPos = None
+            
         # break
         if playerPos[1] > 240:
             running = False
@@ -221,8 +295,6 @@ def Game():
         draw.rounded_rectangle((
             b[0], b[1], b[0] + 12, b[1] + 12
         ), 2, (0, 0, 0))
-
-
 
     # 플레이어 이미지 그리기
     bg.paste(playerImage, (int(playerPos[0]), int(playerPos[1])))
@@ -252,7 +324,7 @@ def Game():
             
             if score > high_score:
                 high_score = score
-            
+
             with open ("score.txt",'w',encoding='utf-8') as f:
                 f.write(str(high_score))
             
@@ -260,7 +332,6 @@ def Game():
 
         screen.blit(pg.image.fromstring(bg_.tobytes(), bg_.size, "RGB"), (0, 0))
         pg.display.flip()
-
         time.sleep(0.5)
 
 while(True):
