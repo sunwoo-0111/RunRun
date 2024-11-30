@@ -1,5 +1,4 @@
 import time
-
 import pygame as pg
 from PIL import Image, ImageDraw, ImageFont
 import random
@@ -10,6 +9,13 @@ from pygame.examples.aliens import Player
 pg.init()
 screen = pg.display.set_mode((240, 240))
 clock = pg.time.Clock()
+
+#최고점수 로딩
+try:
+    with open ("score.txt", 'r', encoding="utf-8") as f:
+        high_score = int(f.read())
+except:
+    high_score = 0
 
 # 시작화면
 def start_game():
@@ -41,7 +47,7 @@ def start_game():
         pg.display.flip()
         clock.tick(15)
 
-high_score = 0
+
 restart = True
 
 
@@ -49,12 +55,8 @@ def Game():
     global restart, high_score
     restart = False
     
-    # backgroundImage = Image.open("/Users/limsunwoo/runrun/images/background.png").convert("RGB")
-    # draw = ImageDraw.Draw(backgroundImage)
-
-    # screen.blit(pg.image.fromstring(backgroundImage.tobytes(), backgroundImage.size, "RGB"), (0, 0))
-    # pg.display.flip()
-    # clock.tick(15)
+    backgroundImage = Image.open("/Users/limsunwoo/runrun/images/background.png").convert("RGB")
+    
 
     block = []
     for i in range(20):
@@ -188,7 +190,7 @@ def Game():
         # enemyCol = collision(enemy)
 
         # 맵 이미지 좌측을 없애가며 이동
-        bg = Image.new("RGB", (240, 240), (255, 255, 255))
+        bg = backgroundImage.copy()
         draw = ImageDraw.Draw(bg)
         for b in block:
             draw.rounded_rectangle((
@@ -213,7 +215,7 @@ def Game():
         pg.display.flip()
         clock.tick(15)
 
-    bg = Image.new("RGB", (240, 240), (255, 255, 255))
+    bg = backgroundImage.copy()
     draw = ImageDraw.Draw(bg)
     for b in block:
         draw.rounded_rectangle((
@@ -250,6 +252,9 @@ def Game():
             
             if score > high_score:
                 high_score = score
+            
+            with open ("score.txt",'w',encoding='utf-8') as f:
+                f.write(str(high_score))
             
         isScoreDraw = not isScoreDraw
 
