@@ -107,6 +107,10 @@ def Game():
     jumpable = False
     playerSlide = False
 
+    # 추격자 그리기
+    chaserImage = Image.open("/Users/limsunwoo/runrun/images/chaser.png")
+    drawchaserImage = ImageDraw.Draw(chaserImage)
+
     # 목숨 아이템 구현
     heartPos = None
     heartTimer = 0
@@ -194,6 +198,9 @@ def Game():
 
         if time.time() < invincible_until:
             usePlayerImage = usePlayerImage.point(lambda p:p//2)
+            invincible = True # 무적 상태 활성화 플래그
+        else:
+            invincible = False # 다시 끄기
 
         if playerPos[0] < 120:
             playerPos[0] += 1.5
@@ -205,9 +212,9 @@ def Game():
             chaserActive = True
             chaserPos = [-24, 240-36]
 
-        # 추격자 이동 로직 (묵숨이 달때 쫒아오는것 + 목숨을 먹었을 떄 멀어지는 것 까지 구현)
+        # 추격자 이동 로직 (묵숨이 달때 쫒아오는것 + 목숨을 먹었을 때 멀어지는 것 까지 구현)
         if chaserActive:
-            if col == 3:
+            if invincible:
                 chaserPos[0] += chaserSpeed
             else:
                 if lives >= 3:
@@ -229,8 +236,11 @@ def Game():
             
 
         #추격자에게 잡히면 게임 끝
-        if chaserPos[0] + chaserSize[0] == playerPos[0]:
-            running = False
+        if (chaserPos[0] + chaserSize[0] >= playerPos[0] and 
+        chaserPos[0] <= playerPos[0] + playerSize[0] and 
+        chaserPos[1] + chaserSize[1] >= playerPos[1] and 
+        chaserPos[1] <= playerPos[1] + playerSize[1]):
+            running = False  # 게임 오버
 
         
         # 맵 이미지 좌측을 없애가며 이동
@@ -260,12 +270,8 @@ def Game():
 
         # 플레이어 이미지 그리기
         bg.paste(usePlayerImage, (int(playerPos[0]), int(playerPos[1])))
-
-        # 추격자 그리기
-        if chaserActive:
-            draw.rectangle((chaserPos[0], chaserPos[1], chaserPos[0] + 24, chaserPos[1] + 24), fill=(0, 0, 255))
-
-         # 하트 아이템 구현
+        bg.paste(chaserImage, (int(chaserPos[0]),int(chaserPos[1])))
+        # 하트 아이템 구현
 
         heartImage = Image.open("/Users/limsunwoo/runrun/images/heart.png")
         if heartPos is None and lives<3 and random.randint(0,100) < 1:
@@ -296,10 +302,9 @@ def Game():
             b[0], b[1], b[0] + 12, b[1] + 12
         ), 2, (0, 0, 0))
 
-    # 플레이어 이미지 그리기
+    # 플레이어와 추격자 이미지 그리기
     bg.paste(playerImage, (int(playerPos[0]), int(playerPos[1])))
-
-    
+    bg.paste(chaserImage, (int(chaserPos[0]), int(chaserPos[1])))
     # 게임 오버 화면
     isScoreDraw = False
     while True:
