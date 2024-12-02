@@ -135,16 +135,18 @@ def Game():
                 return min(distances, key=distances.get)
         return 0
 
-
-    
     # 게임 루프
     running = True
+    paused = False
     while running:
         
         for event in pg.event.get():
             if event.type == pg.QUIT:
                 running = False
-
+            if event.type == pg.KEYDOWN:
+                if event.key == pg.K_b:
+                    paused = not paused
+   
         keys = pg.key.get_pressed()
         if keys[pg.K_UP]:
             if jumpable:
@@ -175,8 +177,6 @@ def Game():
 
         jumpable = False
         # 충돌했을 때 벽에 밀려 위치가 애매해지는 현상 해결
-        isrecovering = False
-        recoverPos = 120
         # 충돌 체크
         for b in block:
             col = collision(playerPos,playerSize, b)
@@ -202,6 +202,7 @@ def Game():
         else:
             invincible = False # 다시 끄기
 
+        #recovering
         if playerPos[0] < 120:
             playerPos[0] += 1.5
             if playerPos[0] == 120:
@@ -215,7 +216,25 @@ def Game():
         # 추격자 이동 로직 (묵숨이 달때 쫒아오는것 + 목숨을 먹었을 때 멀어지는 것 까지 구현)
         if chaserActive:
             if invincible:
-                chaserPos[0] += chaserSpeed
+                if(playerPos[0]<120):
+                    chaserPos[0] += chaserSpeed
+                else:
+                    if lives >= 3:
+                        chaserPos[0] -= 1
+                        if chaserPos[0] == 0:
+                            chaserPos[0] = 0
+                    elif lives == 2:
+                        if chaserPos[0] < playerPos[0] - 60: 
+                            chaserPos[0] += chaserSpeed
+                        elif chaserPos[0] > playerPos[0] - 60:
+                            chaserPos[0] -= 1
+                        else:
+                            chaserPos[0] = playerPos[0]- 60
+                    elif lives == 1:
+                        if chaserPos[0] < playerPos[0] - 40:
+                            chaserPos[0] += chaserSpeed
+                        else:
+                            chaserPos[0] = playerPos[0] - 40
             else:
                 if lives >= 3:
                     chaserPos[0] -= 1
@@ -321,6 +340,7 @@ def Game():
         draw = ImageDraw.Draw(bg_)
 
         # 결과 점수 반환 및 재시작 여부
+        
         if isScoreDraw:
             font_path = "/Users/limsunwoo/runrun/font/continuous.ttf"
             font = ImageFont.truetype(font_path, size = 20)
@@ -343,3 +363,4 @@ while(True):
     start_game()
     while(restart):
         Game()
+        
